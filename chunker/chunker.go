@@ -57,7 +57,7 @@ func (s *SentenceChunker) SetOverlap(size int) {
 func (s *SentenceChunker) Chunk(data []byte) [][]byte {
 	var chunks [][]byte
 	start := 0
-	for i := 0; i < len(data); i++ {
+	for i := range len(data) {
 		if data[i] == '.' || data[i] == '!' || data[i] == '?' {
 			end := i + 1
 			if end > len(data) {

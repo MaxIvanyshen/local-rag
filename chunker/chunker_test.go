@@ -1,6 +1,7 @@
 package chunker
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -167,4 +168,21 @@ func TestSentenceChunker_Chunk(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Test that SentenceChunker implements OverlapChunker interface
+func TestSentenceChunker_ImplementsOverlapChunker(t *testing.T) {
+	var _ OverlapChunker = &SentenceChunker{}
+}
+
+func TestSentenceChunker_WithMarkdownFile(t *testing.T) {
+	data, err := os.ReadFile("../test_data/chunking.md")
+	require.NoError(t, err)
+
+	chunker := &SentenceChunker{}
+	chunker.SetOverlap(0)
+	chunks := chunker.Chunk(data)
+
+	// The file contains 8 sentences ending with '.', plus remaining whitespace
+	require.Len(t, chunks, 9)
 }
