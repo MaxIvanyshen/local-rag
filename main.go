@@ -1,39 +1,42 @@
 package main
 
 import (
-	"database/sql"
-	"embed"
-	"log"
+	"io"
+	"log/slog"
+	"os"
 
-	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
+	"local_rag/config"
+	"local_rag/db"
+
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pressly/goose/v3"
 )
 
-//go:embed migrations/*.sql
-var embedMigrations embed.FS
+func setupLogging(cfg *config.Config) {
+	file, err := os.OpenFile(cfg.LogFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		slog.Error("Failed to open log file", "error", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+
+	multi := io.MultiWriter(os.Stdout, file)
+	handler := slog.NewTextHandler(multi, nil)
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+}
 
 func main() {
-	sqlite_vec.Auto()
-	db, err := sql.Open("sqlite3", "./local_rag.db")
-	if err != nil {
-		log.Fatal(err)
-	}
+	cfg := config.LoadConfig()
+	db := db.Init(cfg)
 	defer db.Close()
 
-	goose.SetBaseFS(embedMigrations)
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := goose.Up(db, "migrations"); err != nil {
-		log.Fatal(err)
-	}
+	setupLogging(cfg)
 
 	var vecVersion string
-	err = db.QueryRow("select vec_version()").Scan(&vecVersion)
+	err := db.QueryRow("select vec_version()").Scan(&vecVersion)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("Failed to query vec_version", "error", err)
+		os.Exit(1)
 	}
-	log.Printf("vec_version=%s\n", vecVersion)
+	slog.Info("Vec version retrieved", "vec_version", vecVersion)
 }
