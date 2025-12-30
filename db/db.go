@@ -2,9 +2,10 @@ package db
 
 import (
 	"embed"
-	"local_rag/config"
 	"log/slog"
 	"time"
+
+	"github.com/MaxIvanyshen/local-rag/config"
 
 	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 	"github.com/pressly/goose/v3"

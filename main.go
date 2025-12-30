@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"os"
 
-	"local_rag/config"
-	"local_rag/db"
+	"github.com/MaxIvanyshen/local-rag/config"
+	"github.com/MaxIvanyshen/local-rag/db"
 
 	_ "github.com/mattn/go-sqlite3"
 )

@@ -1,4 +1,4 @@
-module local_rag
+module github.com/MaxIvanyshen/local-rag
 
 go 1.25.4
 
