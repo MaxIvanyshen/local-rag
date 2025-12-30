@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -8,31 +9,24 @@ import (
 	"gorm.io/gorm"
 )
 
-// SaveChunk inserts a chunk and its embedding into the database.
-// Assumes the document already exists.
-func SaveChunk(db *gorm.DB, documentID string, chunkIndex int, data []byte, embedding []float32) error {
-	// Generate UUID for chunk
-	chunkID := uuid.New().String()
-
-	// Create chunk using GORM
+func SaveChunk(ctx context.Context, db *gorm.DB, documentID string, chunkIndex int, data []byte, embedding []float32) error {
 	chunk := Chunk{
-		ID:         chunkID,
+		ID:         uuid.New().String(),
 		DocumentID: documentID,
 		ChunkIndex: chunkIndex,
 		Data:       data,
 	}
-	if err := db.Create(&chunk).Error; err != nil {
+	if err := db.WithContext(ctx).Create(&chunk).Error; err != nil {
 		return fmt.Errorf("failed to insert chunk: %w", err)
 	}
 
-	// Convert embedding to JSON string
 	embeddingJSON, err := json.Marshal(embedding)
 	if err != nil {
 		return fmt.Errorf("failed to marshal embedding: %w", err)
 	}
 
 	// Insert into chunk_embeddings virtual table using raw SQL
-	err = db.Exec(`
+	err = db.WithContext(ctx).Exec(`
 		INSERT INTO chunk_embeddings (rowid, embedding)
 		VALUES ((SELECT last_insert_rowid()), ?)`, string(embeddingJSON)).Error
 	if err != nil {
@@ -50,8 +44,7 @@ type SearchResult struct {
 	Distance   float64
 }
 
-func SearchChunks(db *gorm.DB, queryEmbedding []float32, limit int) ([]SearchResult, error) {
-	// Serialize query embedding to JSON
+func SearchChunks(ctx context.Context, db *gorm.DB, queryEmbedding []float32, limit int) ([]SearchResult, error) {
 	queryJSON, err := json.Marshal(queryEmbedding)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal query embedding: %w", err)
@@ -59,7 +52,7 @@ func SearchChunks(db *gorm.DB, queryEmbedding []float32, limit int) ([]SearchRes
 
 	// KNN query with raw SQL using GORM
 	var results []SearchResult
-	err = db.Raw(`
+	err = db.WithContext(ctx).Raw(`
         SELECT c.id, c.document_id, c.chunk_index, c.data, knn.distance
         FROM chunks c
         JOIN (SELECT rowid, distance FROM chunk_embeddings WHERE embedding MATCH ? ORDER BY distance LIMIT ?) knn
