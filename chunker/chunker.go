@@ -77,6 +77,7 @@ func (s *SentenceChunker) Chunk(data []byte) [][]byte {
 	return chunks
 }
 
+// ParagraphChunker splits data into paragraphs based on double newline characters.
 type ParagraphChunker struct {
 	OverlapSize int
 }

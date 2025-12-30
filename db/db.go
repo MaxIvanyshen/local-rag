@@ -19,7 +19,6 @@ func Init(cfg *config.Config) *sql.DB {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
 
 	goose.SetBaseFS(embedMigrations)
 	if err := goose.SetDialect("sqlite3"); err != nil {
