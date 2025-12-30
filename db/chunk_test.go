@@ -91,6 +91,12 @@ func TestSearchChunks(t *testing.T) {
 	err := db.Exec("INSERT INTO document (id, name) VALUES (?, ?)", docID, "test document").Error
 	require.NoError(t, err)
 
+	// Verify document is inserted
+	var name string
+	err = sqlDB.QueryRow("SELECT name FROM document WHERE id = ?", docID).Scan(&name)
+	require.NoError(t, err)
+	assert.Equal(t, "test document", name)
+
 	// Save two chunks
 	embedding1 := make([]float32, 768)
 	embedding1[0] = 1.0
@@ -110,4 +116,5 @@ func TestSearchChunks(t *testing.T) {
 	assert.Equal(t, 0, results[0].ChunkIndex)
 	assert.Equal(t, []byte("chunk 0"), results[0].Data)
 	assert.Equal(t, docID, results[0].DocumentID)
+	assert.Equal(t, "test document", results[0].DocumentName)
 }

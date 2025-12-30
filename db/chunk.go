@@ -37,11 +37,12 @@ func SaveChunk(ctx context.Context, db *gorm.DB, documentID string, chunkIndex i
 }
 
 type SearchResult struct {
-	ChunkID    string
-	DocumentID string
-	ChunkIndex int
-	Data       []byte
-	Distance   float64
+	ChunkID      string  `json:"chunk_id" gorm:"column:chunk_id"`
+	DocumentID   string  `json:"document_id" gorm:"column:document_id"`
+	DocumentName string  `json:"document_name" gorm:"column:document_name"`
+	ChunkIndex   int     `json:"chunk_index" gorm:"column:chunk_index"`
+	Data         []byte  `json:"data" gorm:"column:data"`
+	Distance     float64 `json:"distance" gorm:"column:distance"`
 }
 
 func SearchChunks(ctx context.Context, db *gorm.DB, queryEmbedding []float32, limit int) ([]SearchResult, error) {
@@ -50,13 +51,23 @@ func SearchChunks(ctx context.Context, db *gorm.DB, queryEmbedding []float32, li
 		return nil, fmt.Errorf("failed to marshal query embedding: %w", err)
 	}
 
-	// KNN query with raw SQL using GORM
 	var results []SearchResult
-	err = db.WithContext(ctx).Raw(`
-        SELECT c.id, c.document_id, c.chunk_index, c.data, knn.distance
-        FROM chunks c
-        JOIN (SELECT rowid, distance FROM chunk_embeddings WHERE embedding MATCH ? ORDER BY distance LIMIT ?) knn
-        ON c.rowid = knn.rowid`, string(queryJSON), limit).Scan(&results).Error
+	err = db.WithContext(ctx).Raw(`SELECT 
+		c.id as chunk_id,
+		c.document_id as document_id,
+		d.name as document_name, 
+		c.chunk_index as chunk_index,
+		c.data as data, 
+		knn.distance as distance 
+		FROM chunks c 
+		JOIN document d ON d.id = c.document_id 
+		JOIN (
+			SELECT rowid, distance 
+			FROM chunk_embeddings 
+			WHERE embedding MATCH ? 
+			ORDER BY distance 
+			LIMIT ?
+		) knn ON c.rowid = knn.rowid`, string(queryJSON), limit).Scan(&results).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}
