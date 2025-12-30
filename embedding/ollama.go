@@ -52,13 +52,13 @@ func (oe *OllamaEmbedder) GenerateEmbedding(ctx context.Context, text string) ([
 
 	body, err := json.Marshal(req)
 	if err != nil {
-		slog.LogAttrs(ctx, slog.LevelError, "failed to marshal request", slog.String("error", err.Error()))
+		slog.Error("failed to marshal request", slog.String("error", err.Error()))
 		return nil, err
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", oe.baseURL+"/api/embeddings", bytes.NewBuffer(body))
 	if err != nil {
-		slog.LogAttrs(ctx, slog.LevelError, "failed to create HTTP request", slog.String("error", err.Error()))
+		slog.Error("failed to create HTTP request", slog.String("error", err.Error()))
 		return nil, err
 	}
 
@@ -66,14 +66,14 @@ func (oe *OllamaEmbedder) GenerateEmbedding(ctx context.Context, text string) ([
 
 	resp, err := oe.httpClient.Do(httpReq)
 	if err != nil {
-		slog.LogAttrs(ctx, slog.LevelError, "HTTP request failed", slog.String("error", err.Error()))
+		slog.Error("HTTP request failed", slog.String("error", err.Error()))
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	var embeddingResp OllamaEmbeddingResponse
 	if err := json.NewDecoder(resp.Body).Decode(&embeddingResp); err != nil {
-		slog.LogAttrs(ctx, slog.LevelError, "failed to decode response", slog.String("error", err.Error()))
+		slog.Error("failed to decode response", slog.String("error", err.Error()))
 		return nil, err
 	}
 

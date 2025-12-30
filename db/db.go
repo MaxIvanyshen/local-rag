@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"embed"
 	"local_rag/config"
-	"log"
+	"log/slog"
 
 	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 	"github.com/pressly/goose/v3"
@@ -17,17 +17,19 @@ func Init(cfg *config.Config) *sql.DB {
 	sqlite_vec.Auto()
 	db, err := sql.Open("sqlite3", cfg.DBPath)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to open database", slog.String("error", err.Error()))
 	}
 
 	goose.SetBaseFS(embedMigrations)
 	if err := goose.SetDialect("sqlite3"); err != nil {
-		log.Fatal(err)
+		slog.Error("failed to set goose dialect", slog.String("error", err.Error()))
 	}
 
 	if err := goose.Up(db, "migrations"); err != nil {
-		log.Fatal(err)
+		slog.Error("failed to run migrations", slog.String("error", err.Error()))
 	}
+
+	slog.Info("database initialized successfully")
 
 	return db
 }

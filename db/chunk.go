@@ -31,13 +31,6 @@ func SaveChunk(db *sql.DB, documentID string, chunkIndex int, data []byte, embed
 		return fmt.Errorf("failed to insert chunk: %w", err)
 	}
 
-	// Get the rowid of the inserted chunk
-	var chunkRowID int64
-	err = db.QueryRow("SELECT last_insert_rowid()").Scan(&chunkRowID)
-	if err != nil {
-		return fmt.Errorf("failed to get chunk rowid: %w", err)
-	}
-
 	// Convert embedding to JSON string
 	embeddingJSON, err := json.Marshal(embedding)
 	if err != nil {
@@ -47,8 +40,7 @@ func SaveChunk(db *sql.DB, documentID string, chunkIndex int, data []byte, embed
 	// Insert into chunk_embeddings virtual table
 	_, err = db.Exec(`
 		INSERT INTO chunk_embeddings (rowid, embedding)
-		VALUES (?, ?)`,
-		chunkRowID, string(embeddingJSON))
+		VALUES ((SELECT last_insert_rowid()), ?)`, string(embeddingJSON))
 	if err != nil {
 		return fmt.Errorf("failed to insert embedding: %w", err)
 	}
@@ -66,34 +58,38 @@ type SearchResult struct {
 
 func SearchChunks(db *sql.DB, queryEmbedding []float32, limit int) ([]SearchResult, error) {
 	// Serialize query embedding to JSON
-	queryJSON, _ := json.Marshal(queryEmbedding)
+	queryJSON, err := json.Marshal(queryEmbedding)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal query embedding: %w", err)
+	}
 
-	// KNN query
-	rows, _ := db.Query(`
-        SELECT rowid, distance 
-        FROM chunk_embeddings 
-        WHERE embedding MATCH ? 
-        ORDER BY distance 
-        LIMIT ?`, string(queryJSON), limit)
+	// KNN query with JOIN using subquery
+	rows, err := db.Query(`
+        SELECT c.id, c.document_id, c.chunk_index, c.data, knn.distance
+        FROM chunks c
+        JOIN (SELECT rowid, distance FROM chunk_embeddings WHERE embedding MATCH ? ORDER BY distance LIMIT ?) knn
+        ON c.rowid = knn.rowid`, string(queryJSON), limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query embeddings: %w", err)
+	}
+	defer rows.Close()
 
 	var results []SearchResult
 	for rows.Next() {
-		var rowid int64
-		var distance float64
-		rows.Scan(&rowid, &distance)
-
-		// Fetch chunk data
 		var chunkID, docID string
 		var index int
 		var data []byte
-		db.QueryRow(`
-            SELECT id, document_id, chunk_index, data 
-            FROM chunks 
-            WHERE rowid = ?`, rowid).Scan(&chunkID, &docID, &index, &data)
+		var distance float64
+		if err := rows.Scan(&chunkID, &docID, &index, &data, &distance); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
 
 		results = append(results, SearchResult{
 			ChunkID: chunkID, DocumentID: docID, ChunkIndex: index, Data: data, Distance: distance,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
 	}
 	return results, nil
 }
