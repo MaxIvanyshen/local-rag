@@ -1,33 +1,27 @@
 package db
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
-
-type Chunk struct {
-	ID         string
-	DocumentID string
-	ChunkIndex int
-	Data       []byte
-	Embedding  []float32
-}
 
 // SaveChunk inserts a chunk and its embedding into the database.
 // Assumes the document already exists.
-func SaveChunk(db *sql.DB, documentID string, chunkIndex int, data []byte, embedding []float32) error {
+func SaveChunk(db *gorm.DB, documentID string, chunkIndex int, data []byte, embedding []float32) error {
 	// Generate UUID for chunk
 	chunkID := uuid.New().String()
 
-	// Insert into chunks table
-	_, err := db.Exec(`
-		INSERT INTO chunks (id, document_id, chunk_index, data)
-		VALUES (?, ?, ?, ?)`,
-		chunkID, documentID, chunkIndex, data)
-	if err != nil {
+	// Create chunk using GORM
+	chunk := Chunk{
+		ID:         chunkID,
+		DocumentID: documentID,
+		ChunkIndex: chunkIndex,
+		Data:       data,
+	}
+	if err := db.Create(&chunk).Error; err != nil {
 		return fmt.Errorf("failed to insert chunk: %w", err)
 	}
 
@@ -37,10 +31,10 @@ func SaveChunk(db *sql.DB, documentID string, chunkIndex int, data []byte, embed
 		return fmt.Errorf("failed to marshal embedding: %w", err)
 	}
 
-	// Insert into chunk_embeddings virtual table
-	_, err = db.Exec(`
+	// Insert into chunk_embeddings virtual table using raw SQL
+	err = db.Exec(`
 		INSERT INTO chunk_embeddings (rowid, embedding)
-		VALUES ((SELECT last_insert_rowid()), ?)`, string(embeddingJSON))
+		VALUES ((SELECT last_insert_rowid()), ?)`, string(embeddingJSON)).Error
 	if err != nil {
 		return fmt.Errorf("failed to insert embedding: %w", err)
 	}
@@ -56,40 +50,22 @@ type SearchResult struct {
 	Distance   float64
 }
 
-func SearchChunks(db *sql.DB, queryEmbedding []float32, limit int) ([]SearchResult, error) {
+func SearchChunks(db *gorm.DB, queryEmbedding []float32, limit int) ([]SearchResult, error) {
 	// Serialize query embedding to JSON
 	queryJSON, err := json.Marshal(queryEmbedding)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal query embedding: %w", err)
 	}
 
-	// KNN query with JOIN using subquery
-	rows, err := db.Query(`
+	// KNN query with raw SQL using GORM
+	var results []SearchResult
+	err = db.Raw(`
         SELECT c.id, c.document_id, c.chunk_index, c.data, knn.distance
         FROM chunks c
         JOIN (SELECT rowid, distance FROM chunk_embeddings WHERE embedding MATCH ? ORDER BY distance LIMIT ?) knn
-        ON c.rowid = knn.rowid`, string(queryJSON), limit)
+        ON c.rowid = knn.rowid`, string(queryJSON), limit).Scan(&results).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to query embeddings: %w", err)
-	}
-	defer rows.Close()
-
-	var results []SearchResult
-	for rows.Next() {
-		var chunkID, docID string
-		var index int
-		var data []byte
-		var distance float64
-		if err := rows.Scan(&chunkID, &docID, &index, &data, &distance); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
-		}
-
-		results = append(results, SearchResult{
-			ChunkID: chunkID, DocumentID: docID, ChunkIndex: index, Data: data, Distance: distance,
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
+		return nil, fmt.Errorf("failed to query: %w", err)
 	}
 	return results, nil
 }

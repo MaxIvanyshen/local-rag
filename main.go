@@ -24,19 +24,15 @@ func main() {
 	cfg := config.GetConfig(ctx)
 
 	db := db.Init(cfg)
-	defer db.Close()
-
-	logFile, err := os.OpenFile(cfg.LogFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	sqlDB, err := db.DB()
 	if err != nil {
-		slog.Error("Failed to open log file", slog.String("error", err.Error()))
+		slog.Error("failed to get sql.DB", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	defer logFile.Close()
-
-	setupLogging(logFile)
+	defer sqlDB.Close()
 
 	var vecVersion string
-	err = db.QueryRow("select vec_version()").Scan(&vecVersion)
+	err = sqlDB.QueryRow("select vec_version()").Scan(&vecVersion)
 	if err != nil {
 		slog.Error("failed to get vec extension version", slog.String("error", err.Error()))
 		os.Exit(1)
