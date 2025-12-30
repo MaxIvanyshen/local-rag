@@ -76,3 +76,34 @@ func (s *SentenceChunker) Chunk(data []byte) [][]byte {
 	}
 	return chunks
 }
+
+type ParagraphChunker struct {
+	OverlapSize int
+}
+
+func (p *ParagraphChunker) SetOverlap(size int) {
+	p.OverlapSize = size
+}
+
+func (p *ParagraphChunker) Chunk(data []byte) [][]byte {
+	var chunks [][]byte
+	start := 0
+	for i := range len(data) - 1 {
+		if data[i] == '\n' && data[i+1] == '\n' {
+			end := i + 2
+			if end > len(data) {
+				end = len(data)
+			}
+			chunk := data[start:end]
+			chunks = append(chunks, chunk)
+			start = end - p.OverlapSize
+			if start < 0 {
+				start = 0
+			}
+		}
+	}
+	if start < len(data) {
+		chunks = append(chunks, data[start:])
+	}
+	return chunks
+}
