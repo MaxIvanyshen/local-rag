@@ -17,6 +17,28 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+func createEmbedder(cfg *config.Config) (embedding.Embedder, error) {
+	switch cfg.Embedder.Type {
+	case "ollama":
+		return embedding.NewOllamaEmbedder(cfg.Embedder.Model, embedding.WithBaseURL(cfg.Embedder.BaseURL)), nil
+	case "http":
+		return embedding.NewHTTPEmbedder(cfg.Embedder.BaseURL), nil
+	default:
+		return nil, fmt.Errorf("unknown embedder type: %s", cfg.Embedder.Type)
+	}
+}
+
+func createChunker(cfg *config.Config) (chunker.Chunker, error) {
+	switch cfg.Chunker.Type {
+	case "paragraph":
+		return chunker.NewParagraphChunker(cfg.Chunker.OverlapBytes), nil
+	case "fixed":
+		return &chunker.FixedSizeChunker{ChunkSize: cfg.Chunker.ChunkSize}, nil
+	default:
+		return nil, fmt.Errorf("unknown chunker type: %s", cfg.Chunker.Type)
+	}
+}
+
 func setupLogging(file *os.File) {
 	multi := io.MultiWriter(os.Stdout, file)
 	handler := slog.NewTextHandler(multi, nil)
@@ -65,11 +87,21 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	contentChunker := chunker.NewParagraphChunker(cfg.Chunker.OverlapBytes)
+	contentChunker, err := createChunker(cfg)
+	if err != nil {
+		slog.Error("failed to create chunker", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	embedder, err := createEmbedder(cfg)
+	if err != nil {
+		slog.Error("failed to create embedder", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
 
 	s := service.NewService(&service.ServiceParameters{
 		DB:       db,
-		Embedder: embedding.NewOllamaEmbedder(cfg.Ollama.Model),
+		Embedder: embedder,
 		Chunker:  contentChunker,
 		Cfg:      cfg,
 	})

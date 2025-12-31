@@ -69,10 +69,13 @@ The application uses environment variables and a config file for configuration:
 
 - `LOCAL_RAG_PORT`: Server port (default: 8080)
 - `DB_PATH`: Database file path (default: ./local_rag.db)
-- `OLLAMA_BASE_URL`: Ollama server URL (default: http://localhost:11434)
-- `OLLAMA_MODEL`: Embedding model (default: nomic-embed-text)
+- `EMBEDDER_TYPE`: Embedder type ("ollama" or "http") (default: ollama)
+- `EMBEDDER_BASE_URL`: Embedder server URL (default: http://localhost:11434)
+- `EMBEDDER_MODEL`: Embedding model (default: nomic-embed-text)
 - `SEARCH_TOP_K`: Number of results to return (default: 5)
+- `CHUNKER_TYPE`: Chunker type ("paragraph" or "fixed") (default: paragraph)
 - `CHUNKER_OVERLAP_BYTES`: Chunk overlap in bytes (default: 0)
+- `CHUNKER_CHUNK_SIZE`: Chunk size for fixed chunker (default: 1000)
 - `BATCH_WORKER_COUNT`: Workers for batch processing (default: 4)
 
 Config file: `~/.config/local_rag/config.yml`
@@ -83,13 +86,16 @@ port: 8080
 db_path: ./local_rag.db
 search:
   top_k: 5
-ollama:
+embedder:
+  type: ollama
   base_url: http://localhost:11434
   model: nomic-embed-text
 chunker:
+  type: paragraph
   overlap_bytes: 0
+  chunk_size: 1000
 batch_processing:
-  worker_count: 4
+  worker_count: 10
 ```
 
 ## Usage
@@ -135,7 +141,7 @@ Content-Type: application/json
 
 {
   "document_name": "example.txt",
-  "document_data": "<base64 encoded content>"
+  "document_data": "raw text content"
 }
 ```
 
@@ -144,16 +150,18 @@ Content-Type: application/json
 POST /api/batch_process_documents
 Content-Type: application/json
 
-[
-  {
-    "document_name": "doc1.txt",
-    "document_data": "<base64 encoded content>"
-  },
-  {
-    "document_name": "doc2.txt",
-    "document_data": "<base64 encoded content>"
-  }
-]
+{
+  "documents": [
+    {
+      "document_name": "doc1.txt",
+      "document_data": "raw text content"
+    },
+    {
+      "document_name": "doc2.txt",
+      "document_data": "raw text content"
+    }
+  ]
+}
 ```
 
 #### Search

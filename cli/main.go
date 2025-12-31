@@ -170,7 +170,7 @@ func batchProcess(serverURL string, filenames []string) {
 		})
 	}
 
-	body, err := json.Marshal(reqs)
+	body, err := json.Marshal(service.BatchProcessDocumentsRequest{Documents: reqs})
 	if err != nil {
 		fmt.Printf("Error marshaling request: %v\n", err)
 		os.Exit(1)

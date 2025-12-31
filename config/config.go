@@ -15,8 +15,8 @@ type Config struct {
 
 	DBPath string `yaml:"db_path" env:"DB_PATH" env-default:"./local_rag.db"`
 
-	Search SearchConfig `yaml:"search"`
-	Ollama OllamaConfig `yaml:"ollama"`
+	Search   SearchConfig   `yaml:"search"`
+	Embedder EmbedderConfig `yaml:"embedder"`
 
 	Logging LoggingConfig `yaml:"logging"`
 
@@ -36,7 +36,9 @@ type BatchProcessingConfig struct {
 }
 
 type ChunkerConfig struct {
-	OverlapBytes int `yaml:"overlap_bytes" env:"CHUNKER_OVERLAP_BYTES" env-default:"0"`
+	Type         string `yaml:"type" env:"CHUNKER_TYPE" env-default:"paragraph"`
+	OverlapBytes int    `yaml:"overlap_bytes" env:"CHUNKER_OVERLAP_BYTES" env-default:"0"`
+	ChunkSize    int    `yaml:"chunk_size" env:"CHUNKER_CHUNK_SIZE" env-default:"1000"`
 }
 
 type LoggingConfig struct {
@@ -48,9 +50,10 @@ type SearchConfig struct {
 	TopK int `yaml:"top_k" env:"SEARCH_TOP_K" env-default:"5"`
 }
 
-type OllamaConfig struct {
-	BaseURL string `yaml:"base_url" env:"OLLAMA_BASE_URL" env-default:"http://localhost:11434"`
-	Model   string `yaml:"model" env:"OLLAMA_MODEL" env-default:"nomic-embed-text"`
+type EmbedderConfig struct {
+	Type    string `yaml:"type" env:"EMBEDDER_TYPE" env-default:"ollama"`
+	BaseURL string `yaml:"base_url" env:"EMBEDDER_BASE_URL" env-default:"http://localhost:11434"`
+	Model   string `yaml:"model" env:"EMBEDDER_MODEL" env-default:"nomic-embed-text"`
 }
 
 var cfg *Config

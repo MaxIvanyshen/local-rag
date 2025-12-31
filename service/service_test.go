@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -11,6 +12,28 @@ import (
 	"github.com/MaxIvanyshen/local-rag/embedding"
 	"gorm.io/gorm"
 )
+
+func createEmbedder(cfg *config.Config) (embedding.Embedder, error) {
+	switch cfg.Embedder.Type {
+	case "ollama":
+		return embedding.NewOllamaEmbedder(cfg.Embedder.Model, embedding.WithBaseURL(cfg.Embedder.BaseURL)), nil
+	case "http":
+		return embedding.NewHTTPEmbedder(cfg.Embedder.BaseURL), nil
+	default:
+		return nil, fmt.Errorf("unknown embedder type: %s", cfg.Embedder.Type)
+	}
+}
+
+func createChunker(cfg *config.Config) (chunker.Chunker, error) {
+	switch cfg.Chunker.Type {
+	case "paragraph":
+		return chunker.NewParagraphChunker(cfg.Chunker.OverlapBytes), nil
+	case "fixed":
+		return &chunker.FixedSizeChunker{ChunkSize: cfg.Chunker.ChunkSize}, nil
+	default:
+		return nil, fmt.Errorf("unknown chunker type: %s", cfg.Chunker.Type)
+	}
+}
 
 var (
 	svc    *Service
@@ -23,11 +46,19 @@ func TestMain(m *testing.M) {
 
 	testDB = db.SetupTestDB()
 
-	chunker := chunker.NewParagraphChunker(cfg.Chunker.OverlapBytes)
+	embedder, err := createEmbedder(cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	chunker, err := createChunker(cfg)
+	if err != nil {
+		panic(err)
+	}
 
 	svc = NewService(&ServiceParameters{
 		DB:       testDB,
-		Embedder: embedding.NewOllamaEmbedder(cfg.Ollama.Model),
+		Embedder: embedder,
 		Chunker:  chunker,
 		Cfg:      cfg,
 	})
@@ -85,7 +116,7 @@ func TestBatchProcessDocuments(t *testing.T) {
 		},
 	}
 
-	s, err := svc.BatchProcessDocuments(ctx, reqs)
+	s, err := svc.BatchProcessDocuments(ctx, &BatchProcessDocumentsRequest{Documents: reqs})
 	if err != nil {
 		t.Fatalf("failed to batch process documents: %v", err)
 	}
@@ -114,7 +145,7 @@ func TestBatchProcessDocumentsEmpty(t *testing.T) {
 
 	reqs := []*ProcessDocumentRequest{}
 
-	s, err := svc.BatchProcessDocuments(ctx, reqs)
+	s, err := svc.BatchProcessDocuments(ctx, &BatchProcessDocumentsRequest{Documents: reqs})
 	if err != nil {
 		t.Fatalf("failed to batch process empty list: %v", err)
 	}
@@ -157,7 +188,7 @@ func TestProcessOpenAIGuideNotes(t *testing.T) {
 	}
 
 	for _, res := range results {
-		t.Logf("Found chunk: %s", string(string(res.Data)))
+		t.Logf("Found chunk: %s", res.Content)
 	}
 
 	if len(results) == 0 {

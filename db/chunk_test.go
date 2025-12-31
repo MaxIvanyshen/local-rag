@@ -81,7 +81,7 @@ func TestSearchChunks(t *testing.T) {
 
 	// First result should be the closest (chunk 0)
 	assert.Equal(t, 0, results[0].ChunkIndex)
-	assert.Equal(t, []byte("chunk 0"), results[0].Data)
+	assert.Equal(t, "chunk 0", results[0].Content)
 	assert.Equal(t, docID, results[0].DocumentID)
 	assert.Equal(t, "test document", results[0].DocumentName)
 }
