@@ -44,10 +44,10 @@ func NewOllamaEmbedder(modelName string, opts ...Option) *OllamaEmbedder {
 	return oe
 }
 
-func (oe *OllamaEmbedder) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
+func (oe *OllamaEmbedder) GenerateEmbedding(ctx context.Context, input []byte) ([]float32, error) {
 	req := OllamaEmbeddingRequest{
 		Model:  oe.modelName,
-		Prompt: text,
+		Prompt: string(input),
 	}
 
 	body, err := json.Marshal(req)

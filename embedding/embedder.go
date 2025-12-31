@@ -5,8 +5,13 @@ import (
 	"net/http"
 )
 
+type Embedder interface {
+	GenerateEmbedding(ctx context.Context, input []byte) ([]float32, error)
+}
+
 type TextEmbedder interface {
-	GenerateEmbedding(ctx context.Context, text string) ([]float32, error)
+	Embedder
+
 	SetHttpClient(*http.Client)
 }
 

@@ -19,6 +19,18 @@ type Config struct {
 	Ollama OllamaConfig `yaml:"ollama"`
 
 	Logging LoggingConfig `yaml:"logging"`
+
+	Chunker ChunkerConfig `yaml:"chunker"`
+
+	BatchProcessing BatchProcessingConfig `yaml:"batch_processing"`
+}
+
+type BatchProcessingConfig struct {
+	WorkerCount int `yaml:"worker_count" env:"BATCH_WORKER_COUNT" env-default:"4"`
+}
+
+type ChunkerConfig struct {
+	OverlapBytes int `yaml:"overlap_bytes" env:"CHUNKER_OVERLAP_BYTES" env-default:"0"`
 }
 
 type LoggingConfig struct {

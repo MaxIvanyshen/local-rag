@@ -52,20 +52,20 @@ func SearchChunks(ctx context.Context, db *gorm.DB, queryEmbedding []float32, li
 	}
 
 	var results []SearchResult
-	err = db.WithContext(ctx).Raw(`SELECT 
+	err = db.WithContext(ctx).Raw(`SELECT
 		c.id as chunk_id,
 		c.document_id as document_id,
-		d.name as document_name, 
+		d.name as document_name,
 		c.chunk_index as chunk_index,
-		c.data as data, 
-		knn.distance as distance 
-		FROM chunks c 
-		JOIN document d ON d.id = c.document_id 
+		c.data as data,
+		knn.distance as distance
+		FROM chunks c
+		JOIN documents d ON d.id = c.document_id
 		JOIN (
-			SELECT rowid, distance 
-			FROM chunk_embeddings 
-			WHERE embedding MATCH ? 
-			ORDER BY distance 
+			SELECT rowid, distance
+			FROM chunk_embeddings
+			WHERE embedding MATCH ?
+			ORDER BY distance
 			LIMIT ?
 		) knn ON c.rowid = knn.rowid`, string(queryJSON), limit).Scan(&results).Error
 	if err != nil {

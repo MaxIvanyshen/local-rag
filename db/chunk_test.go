@@ -1,53 +1,20 @@
 package db
 
 import (
-	"os"
 	"testing"
 
-	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
-func setupTestDB(t *testing.T) *gorm.DB {
-	os.Remove("test.db")
-	sqlite_vec.Auto()
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
-	require.NoError(t, err)
-
-	// Create tables manually for tests
-	err = db.Exec(`
-		CREATE TABLE document (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		);
-		CREATE TABLE chunks (
-			id TEXT PRIMARY KEY,
-			document_id TEXT,
-			chunk_index INTEGER NOT NULL,
-			data BLOB NOT NULL,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		);
-		CREATE VIRTUAL TABLE chunk_embeddings USING vec0(
-			embedding float[768]
-		);
-	`).Error
-	require.NoError(t, err)
-
-	return db
-}
-
 func TestSaveChunk(t *testing.T) {
-	db := setupTestDB(t)
+	db := SetupTestDB()
 	sqlDB, _ := db.DB()
 	defer sqlDB.Close()
 
 	// Insert a document first
 	docID := "test-doc-1"
-	err := db.Exec("INSERT INTO document (id, name) VALUES (?, ?)", docID, "test document").Error
+	err := db.Exec("INSERT INTO documents (id, name) VALUES (?, ?)", docID, "test document").Error
 	require.NoError(t, err)
 
 	// Test data
@@ -82,18 +49,18 @@ func TestSaveChunk(t *testing.T) {
 }
 
 func TestSearchChunks(t *testing.T) {
-	db := setupTestDB(t)
+	db := SetupTestDB()
 	sqlDB, _ := db.DB()
 	defer sqlDB.Close()
 
 	// Insert a document
 	docID := "test-doc-2"
-	err := db.Exec("INSERT INTO document (id, name) VALUES (?, ?)", docID, "test document").Error
+	err := db.Exec("INSERT INTO documents (id, name) VALUES (?, ?)", docID, "test document").Error
 	require.NoError(t, err)
 
 	// Verify document is inserted
 	var name string
-	err = sqlDB.QueryRow("SELECT name FROM document WHERE id = ?", docID).Scan(&name)
+	err = sqlDB.QueryRow("SELECT name FROM documents WHERE id = ?", docID).Scan(&name)
 	require.NoError(t, err)
 	assert.Equal(t, "test document", name)
 

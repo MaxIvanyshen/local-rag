@@ -3,6 +3,7 @@ package db
 import (
 	"embed"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/MaxIvanyshen/local-rag/config"
@@ -50,4 +51,17 @@ type Chunk struct {
 	ChunkIndex int       `gorm:"not null"`
 	Data       []byte    `gorm:"not null"`
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
+}
+
+func SetupTestDB() *gorm.DB {
+	os.Remove("test.db")
+	sqlite_vec.Auto()
+
+	cfg := config.Config{
+		DBPath: "test.db",
+	}
+
+	db := Init(&cfg)
+
+	return db
 }

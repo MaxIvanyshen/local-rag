@@ -39,7 +39,7 @@ func TestOllamaEmbedder_GenerateEmbedding_Success(t *testing.T) {
 	embedder := NewOllamaEmbedder("text-embedding-3-small", WithHttpClient(client), WithBaseURL(server.URL))
 
 	// Test the embedding generation
-	embedding, err := embedder.GenerateEmbedding(context.Background(), "test prompt")
+	embedding, err := embedder.GenerateEmbedding(context.Background(), []byte("test prompt"))
 	require.NoError(t, err)
 	assert.Equal(t, expectedEmbedding, embedding)
 }
@@ -53,7 +53,7 @@ func TestOllamaEmbedder_GenerateEmbedding_HTTPError(t *testing.T) {
 	client := server.Client()
 	embedder := NewOllamaEmbedder("text-embedding-3-small", WithHttpClient(client), WithBaseURL(server.URL))
 
-	_, err := embedder.GenerateEmbedding(context.Background(), "test")
+	_, err := embedder.GenerateEmbedding(context.Background(), []byte("test"))
 	assert.Error(t, err)
 }
 
@@ -67,7 +67,7 @@ func TestOllamaEmbedder_GenerateEmbedding_InvalidJSON(t *testing.T) {
 	client := server.Client()
 	embedder := NewOllamaEmbedder("text-embedding-3-small", WithHttpClient(client), WithBaseURL(server.URL))
 
-	_, err := embedder.GenerateEmbedding(context.Background(), "test")
+	_, err := embedder.GenerateEmbedding(context.Background(), []byte("test"))
 	assert.Error(t, err)
 }
 
@@ -78,7 +78,7 @@ func TestOllamaEmbedder_IntegrationWithActualOllama(t *testing.T) {
 
 	embedder := NewOllamaEmbedder("nomic-embed-text")
 
-	embedding, err := embedder.GenerateEmbedding(context.Background(), "This is a test sentence for embedding.")
+	embedding, err := embedder.GenerateEmbedding(context.Background(), []byte("This is a test sentence for embedding."))
 	t.Log(embedding)
 
 	require.NoError(t, err)

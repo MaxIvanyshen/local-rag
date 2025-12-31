@@ -82,6 +82,12 @@ type ParagraphChunker struct {
 	OverlapSize int
 }
 
+func NewParagraphChunker(overlap int) *ParagraphChunker {
+	return &ParagraphChunker{
+		OverlapSize: overlap,
+	}
+}
+
 func (p *ParagraphChunker) SetOverlap(size int) {
 	p.OverlapSize = size
 }
