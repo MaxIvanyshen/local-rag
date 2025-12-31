@@ -23,6 +23,12 @@ type Config struct {
 	Chunker ChunkerConfig `yaml:"chunker"`
 
 	BatchProcessing BatchProcessingConfig `yaml:"batch_processing"`
+
+	CLI CLIConfig `yaml:"cli"`
+}
+
+type CLIConfig struct {
+	Host string `yaml:"host" env:"CLI_HOST" env-default:"http://localhost"`
 }
 
 type BatchProcessingConfig struct {

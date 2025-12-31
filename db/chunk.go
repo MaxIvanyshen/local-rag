@@ -41,7 +41,7 @@ type SearchResult struct {
 	DocumentID   string  `json:"document_id" gorm:"column:document_id"`
 	DocumentName string  `json:"document_name" gorm:"column:document_name"`
 	ChunkIndex   int     `json:"chunk_index" gorm:"column:chunk_index"`
-	Data         []byte  `json:"data" gorm:"column:data"`
+	Content      string  `json:"data" gorm:"column:data"`
 	Distance     float64 `json:"distance" gorm:"column:distance"`
 }
 
