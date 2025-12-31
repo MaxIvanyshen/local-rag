@@ -31,6 +31,15 @@ func main() {
 	}
 	defer sqlDB.Close()
 
+	logFile, err := os.OpenFile(cfg.LogFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		slog.Error("failed to open log file", slog.String("error", err.Error()))
+		logFile = nil
+	}
+	defer logFile.Close()
+
+	setupLogging(logFile)
+
 	var vecVersion string
 	err = sqlDB.QueryRow("select vec_version()").Scan(&vecVersion)
 	if err != nil {
