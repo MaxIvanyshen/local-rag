@@ -119,7 +119,7 @@ The `rag` CLI tool provides an easy way to interact with the RAG system.
 
 #### Batch Process Multiple Documents
 ```bash
-./rag batch doc1.txt doc2.md doc3.pdf
+./rag batch doc1.txt doc2.md doc3.txt
 ```
 
 #### Search Documents
