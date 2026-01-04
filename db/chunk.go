@@ -28,11 +28,21 @@ func SaveChunk(ctx context.Context, db *gorm.DB, documentID string, chunkIndex i
 	}
 
 	// Insert into chunk_embeddings virtual table using raw SQL
-	err = db.WithContext(ctx).Exec(`
-		INSERT INTO chunk_embeddings (rowid, embedding)
-		VALUES ((SELECT last_insert_rowid()), ?)`, string(embeddingJSON)).Error
-	if err != nil {
+	if err := db.WithContext(ctx).Exec(`
+		INSERT INTO chunk_embeddings (chunk_id, embedding)
+		VALUES (?, ?)`, chunk.ID, string(embeddingJSON)).Error; err != nil {
 		return fmt.Errorf("failed to insert embedding: %w", err)
+	}
+
+	// Get the rowid of the inserted embedding
+	var embeddingRowID int64
+	if err := db.WithContext(ctx).Raw("SELECT last_insert_rowid()").Scan(&embeddingRowID).Error; err != nil {
+		return fmt.Errorf("failed to get embedding rowid: %w", err)
+	}
+
+	// Update the chunk with the embedding rowid
+	if err := db.WithContext(ctx).Model(&chunk).Update("embedding_rowid", embeddingRowID).Error; err != nil {
+		return fmt.Errorf("failed to update chunk with embedding rowid: %w", err)
 	}
 
 	return nil
@@ -73,7 +83,7 @@ func SearchChunks(ctx context.Context, db *gorm.DB, queryEmbedding []float32, li
 			WHERE embedding MATCH ?
 			ORDER BY distance
 			LIMIT ?
-		) knn ON c.rowid = knn.rowid`, string(queryJSON), limit).Scan(&results).Error
+		) knn ON c.embedding_rowid = knn.rowid`, string(queryJSON), limit).Scan(&results).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to query: %w", err)
 	}

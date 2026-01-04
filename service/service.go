@@ -77,6 +77,8 @@ func Success(s bool) *SuccessResponse {
 }
 
 func (s *Service) ProcessDocument(ctx context.Context, req *ProcessDocumentRequest) (*SuccessResponse, error) {
+	slog.Info("received process document request", slog.String("document_name", req.DocumentName))
+
 	// Delete existing document with this name if it exists
 	err := db.DeleteDocumentByName(ctx, s.db, req.DocumentName)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -109,6 +111,8 @@ func (s *Service) ProcessDocument(ctx context.Context, req *ProcessDocumentReque
 			return Success(false), err
 		}
 	}
+
+	slog.Info("successfully processed document", slog.String("document_name", req.DocumentName))
 
 	return Success(true), nil
 }

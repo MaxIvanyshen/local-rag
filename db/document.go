@@ -26,7 +26,7 @@ func DeleteDocument(ctx context.Context, db *gorm.DB, docID string) error {
 	// Delete embeddings for all chunks of the document
 	if err := db.WithContext(ctx).Exec(`
 		DELETE FROM chunk_embeddings 
-		WHERE rowid IN (SELECT rowid FROM chunks WHERE document_id = ?)`, docID).Error; err != nil {
+		WHERE rowid IN (SELECT embedding_rowid FROM chunks WHERE document_id = ?)`, docID).Error; err != nil {
 		return fmt.Errorf("failed to delete embeddings: %w", err)
 	}
 

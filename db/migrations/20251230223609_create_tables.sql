@@ -11,12 +11,16 @@ CREATE TABLE chunks (
      document_id TEXT,
      chunk_index INTEGER NOT NULL,
      data BLOB NOT NULL,
+     start_line INTEGER,
+     end_line INTEGER,
+     embedding_rowid INTEGER,
      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
  );
 
 CREATE VIRTUAL TABLE chunk_embeddings USING vec0(
+    chunk_id TEXT,
     embedding float[768]
- );
+  );
 -- +goose StatementEnd
 
 -- +goose Down

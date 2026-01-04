@@ -46,13 +46,14 @@ type Document struct {
 }
 
 type Chunk struct {
-	ID         string `gorm:"primaryKey"`
-	DocumentID string
-	ChunkIndex int       `gorm:"not null"`
-	Data       []byte    `gorm:"not null"`
-	StartLine  int       `gorm:"column:start_line"`
-	EndLine    int       `gorm:"column:end_line"`
-	CreatedAt  time.Time `gorm:"autoCreateTime"`
+	ID             string `gorm:"primaryKey"`
+	DocumentID     string
+	ChunkIndex     int       `gorm:"not null"`
+	Data           []byte    `gorm:"not null"`
+	StartLine      int       `gorm:"column:start_line"`
+	EndLine        int       `gorm:"column:end_line"`
+	EmbeddingRowID int       `gorm:"column:embedding_rowid"`
+	CreatedAt      time.Time `gorm:"autoCreateTime"`
 }
 
 func SetupTestDB() *gorm.DB {

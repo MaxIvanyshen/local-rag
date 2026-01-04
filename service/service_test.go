@@ -125,6 +125,7 @@ func TestDeleteDocument(t *testing.T) {
 	if doc == nil {
 		t.Fatalf("document was not found after processing")
 	}
+	initialID := doc.ID
 
 	// Delete document
 	delReq := &DeleteDocumentRequest{
@@ -142,6 +143,13 @@ func TestDeleteDocument(t *testing.T) {
 	doc, err = db.GetDocumentByName(ctx, testDB, documentName)
 	if err == nil || !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("expected document not found, but got: %v", err)
+	}
+
+	// Verify chunks are deleted
+	var chunkCount int64
+	testDB.Model(&db.Chunk{}).Where("document_id = ?", initialID).Count(&chunkCount)
+	if chunkCount != 0 {
+		t.Fatalf("expected 0 chunks for deleted document, but found %d", chunkCount)
 	}
 }
 
