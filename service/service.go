@@ -78,18 +78,18 @@ func (s *Service) ProcessDocument(ctx context.Context, req *ProcessDocumentReque
 	}
 
 	// Chunk the document
-	chunks := s.chunker.Chunk(req.DocumentData)
+	chunkResults := s.chunker.Chunk(req.DocumentData)
 
-	for i, chunk := range chunks {
+	for i, chunkResult := range chunkResults {
 		// Generate embedding for the chunk
-		embedding, err := s.embedder.GenerateEmbedding(ctx, chunk)
+		embedding, err := s.embedder.GenerateEmbedding(ctx, chunkResult.Data)
 		if err != nil {
 			slog.Error("failed to generate embedding for chunk", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName), slog.Int("chunk_index", i))
 			return Success(false), err
 		}
 
 		// Save chunk and its embedding to the database
-		err = db.SaveChunk(ctx, s.db, documentID, i, chunk, embedding)
+		err = db.SaveChunk(ctx, s.db, documentID, i, chunkResult.StartLine, chunkResult.EndLine, chunkResult.Data, embedding)
 		if err != nil {
 			slog.Error("failed to save chunk", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName), slog.Int("chunk_index", i))
 			return Success(false), err

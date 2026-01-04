@@ -68,11 +68,12 @@ go build -o rag cli/main.go
 The application uses environment variables and a config file for configuration:
 
 - `LOCAL_RAG_PORT`: Server port (default: 8080)
-- `DB_PATH`: Database file path (default: ./local_rag.db)
+- `DB_PATH`: Database file path (default: ~/.local_rag/local_rag.db)
 - `EMBEDDER_TYPE`: Embedder type ("ollama" or "http") (default: ollama)
 - `EMBEDDER_BASE_URL`: Embedder server URL (default: http://localhost:11434)
 - `EMBEDDER_MODEL`: Embedding model (default: nomic-embed-text)
 - `SEARCH_TOP_K`: Number of results to return (default: 5)
+- `LOG_FILE_PATH`: Log file path (default: ~/.local_rag/local_rag.log)
 - `CHUNKER_TYPE`: Chunker type ("paragraph" or "fixed") (default: paragraph)
 - `CHUNKER_OVERLAP_BYTES`: Chunk overlap in bytes (default: 0)
 - `CHUNKER_CHUNK_SIZE`: Chunk size for fixed chunker (default: 1000)
@@ -83,13 +84,16 @@ Config file: `~/.config/local_rag/config.yml`
 Example config.yml:
 ```yaml
 port: 8080
-db_path: ./local_rag.db
+db_path: ~/.local_rag/local_rag.db
 search:
   top_k: 5
 embedder:
   type: ollama
   base_url: http://localhost:11434
   model: nomic-embed-text
+logging:
+  log_to_file: true
+  log_file_path: ~/.local_rag/local_rag.log
 chunker:
   type: paragraph
   overlap_bytes: 0
