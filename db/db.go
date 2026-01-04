@@ -50,6 +50,8 @@ type Chunk struct {
 	DocumentID string
 	ChunkIndex int       `gorm:"not null"`
 	Data       []byte    `gorm:"not null"`
+	StartLine  int       `gorm:"column:start_line"`
+	EndLine    int       `gorm:"column:end_line"`
 	CreatedAt  time.Time `gorm:"autoCreateTime"`
 }
 

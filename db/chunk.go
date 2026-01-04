@@ -9,11 +9,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func SaveChunk(ctx context.Context, db *gorm.DB, documentID string, chunkIndex int, data []byte, embedding []float32) error {
+func SaveChunk(ctx context.Context, db *gorm.DB, documentID string, chunkIndex int, startLine, endLine int, data []byte, embedding []float32) error {
 	chunk := Chunk{
 		ID:         uuid.New().String(),
 		DocumentID: documentID,
 		ChunkIndex: chunkIndex,
+		StartLine:  startLine,
+		EndLine:    endLine,
 		Data:       data,
 	}
 	if err := db.WithContext(ctx).Create(&chunk).Error; err != nil {
@@ -41,6 +43,8 @@ type SearchResult struct {
 	DocumentID   string  `json:"document_id" gorm:"column:document_id"`
 	DocumentName string  `json:"document_name" gorm:"column:document_name"`
 	ChunkIndex   int     `json:"chunk_index" gorm:"column:chunk_index"`
+	StartLine    int     `json:"start_line" gorm:"column:start_line"`
+	EndLine      int     `json:"end_line" gorm:"column:end_line"`
 	Content      string  `json:"data" gorm:"column:data"`
 	Distance     float64 `json:"distance" gorm:"column:distance"`
 }
@@ -57,6 +61,8 @@ func SearchChunks(ctx context.Context, db *gorm.DB, queryEmbedding []float32, li
 		c.document_id as document_id,
 		d.name as document_name,
 		c.chunk_index as chunk_index,
+		c.start_line as start_line,
+		c.end_line as end_line,
 		c.data as data,
 		knn.distance as distance
 		FROM chunks c

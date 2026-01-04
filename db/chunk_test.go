@@ -26,7 +26,7 @@ func TestSaveChunk(t *testing.T) {
 	}
 
 	// Save chunk
-	err = SaveChunk(t.Context(), db, docID, chunkIndex, data, embedding)
+	err = SaveChunk(t.Context(), db, docID, chunkIndex, 1, 10, data, embedding)
 	require.NoError(t, err)
 
 	// Verify chunk was inserted
@@ -69,9 +69,9 @@ func TestSearchChunks(t *testing.T) {
 	embedding1[0] = 1.0
 	embedding2 := make([]float32, 768)
 	embedding2[1] = 1.0
-	err = SaveChunk(t.Context(), db, docID, 0, []byte("chunk 0"), embedding1)
+	err = SaveChunk(t.Context(), db, docID, 0, 1, 10, []byte("chunk 0"), embedding1)
 	require.NoError(t, err)
-	err = SaveChunk(t.Context(), db, docID, 1, []byte("chunk 1"), embedding2)
+	err = SaveChunk(t.Context(), db, docID, 1, 11, 20, []byte("chunk 1"), embedding2)
 	require.NoError(t, err)
 
 	// Search with the same embedding as embedding1
