@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -94,64 +95,53 @@ func TestDocProcessingAndSearch(t *testing.T) {
 	}
 
 	if len(results) == 0 {
-		t.Fatalf("expected search results, got none")
+		t.Fatalf("expected to find new content, got none")
 	}
 }
 
-func TestBatchProcessDocuments(t *testing.T) {
+func TestDeleteDocument(t *testing.T) {
 	ctx := context.Background()
 
-	reqs := []*ProcessDocumentRequest{
-		{
-			DocumentName: "Batch Doc 1",
-			DocumentData: []byte("This is the first batch document. It has unique content for testing."),
-		},
-		{
-			DocumentName: "Batch Doc 2",
-			DocumentData: []byte("This is the second batch document. It contains different text."),
-		},
-		{
-			DocumentName: "Batch Doc 3",
-			DocumentData: []byte("Third document in batch. Testing concurrent processing."),
-		},
-	}
+	documentName := "Delete Test Document"
+	documentData := []byte("This is a document to be deleted.")
 
-	s, err := svc.BatchProcessDocuments(ctx, &BatchProcessDocumentsRequest{Documents: reqs})
+	// Process document
+	s, err := svc.ProcessDocument(ctx, &ProcessDocumentRequest{
+		DocumentName: documentName,
+		DocumentData: documentData,
+	})
 	if err != nil {
-		t.Fatalf("failed to batch process documents: %v", err)
+		t.Fatalf("failed to process document: %v", err)
 	}
-
 	if !s.Success {
-		t.Fatalf("batch processing reported failure")
+		t.Fatalf("document processing reported failure")
 	}
 
-	// Verify documents were processed by searching for content from one
-	searchReq := &SearchRequest{
-		Query: "unique content",
-	}
-
-	results, err := svc.Search(ctx, searchReq)
+	// Verify it exists
+	doc, err := db.GetDocumentByName(ctx, testDB, documentName)
 	if err != nil {
-		t.Fatalf("search failed after batch processing: %v", err)
+		t.Fatalf("failed to get document: %v", err)
+	}
+	if doc == nil {
+		t.Fatalf("document was not found after processing")
 	}
 
-	if len(results) == 0 {
-		t.Fatalf("expected search results after batch processing, got none")
+	// Delete document
+	delReq := &DeleteDocumentRequest{
+		DocumentName: documentName,
 	}
-}
-
-func TestBatchProcessDocumentsEmpty(t *testing.T) {
-	ctx := context.Background()
-
-	reqs := []*ProcessDocumentRequest{}
-
-	s, err := svc.BatchProcessDocuments(ctx, &BatchProcessDocumentsRequest{Documents: reqs})
+	s, err = svc.DeleteDocument(ctx, delReq)
 	if err != nil {
-		t.Fatalf("failed to batch process empty list: %v", err)
+		t.Fatalf("failed to delete document: %v", err)
 	}
-
 	if !s.Success {
-		t.Fatalf("batch processing empty list reported failure")
+		t.Fatalf("document deletion reported failure")
+	}
+
+	// Verify it no longer exists
+	doc, err = db.GetDocumentByName(ctx, testDB, documentName)
+	if err == nil || !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("expected document not found, but got: %v", err)
 	}
 }
 

@@ -43,6 +43,15 @@ func DeleteDocument(ctx context.Context, db *gorm.DB, docID string) error {
 	return nil
 }
 
+// DeleteDocumentByName deletes a document by name and all its associated chunks and embeddings.
+func DeleteDocumentByName(ctx context.Context, db *gorm.DB, name string) error {
+	doc, err := GetDocumentByName(ctx, db, name)
+	if err != nil {
+		return err
+	}
+	return DeleteDocument(ctx, db, doc.ID)
+}
+
 // SaveDocument creates a new document in the database and returns its ID.
 func SaveDocument(ctx context.Context, db *gorm.DB, name string) (string, error) {
 	docID := uuid.New().String()

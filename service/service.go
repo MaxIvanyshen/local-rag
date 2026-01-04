@@ -64,6 +64,10 @@ type ProcessDocumentRequest struct {
 	DocumentData []byte `json:"document_data"`
 }
 
+type DeleteDocumentRequest struct {
+	DocumentName string `json:"document_name"`
+}
+
 type SuccessResponse struct {
 	Success bool `json:"success"`
 }
@@ -73,18 +77,11 @@ func Success(s bool) *SuccessResponse {
 }
 
 func (s *Service) ProcessDocument(ctx context.Context, req *ProcessDocumentRequest) (*SuccessResponse, error) {
-	// Check if document with this name already exists and delete it
-	existingDoc, err := db.GetDocumentByName(ctx, s.db, req.DocumentName)
+	// Delete existing document with this name if it exists
+	err := db.DeleteDocumentByName(ctx, s.db, req.DocumentName)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		slog.Error("failed to check for existing document", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
+		slog.Error("failed to delete existing document", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
 		return Success(false), err
-	}
-	if existingDoc != nil {
-		err = db.DeleteDocument(ctx, s.db, existingDoc.ID)
-		if err != nil {
-			slog.Error("failed to delete existing document", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
-			return Success(false), err
-		}
 	}
 
 	// Save document to the database
@@ -113,6 +110,15 @@ func (s *Service) ProcessDocument(ctx context.Context, req *ProcessDocumentReque
 		}
 	}
 
+	return Success(true), nil
+}
+
+func (s *Service) DeleteDocument(ctx context.Context, req *DeleteDocumentRequest) (*SuccessResponse, error) {
+	err := db.DeleteDocumentByName(ctx, s.db, req.DocumentName)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		slog.Error("failed to delete document", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
+		return Success(false), err
+	}
 	return Success(true), nil
 }
 

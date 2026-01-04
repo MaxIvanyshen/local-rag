@@ -12,6 +12,7 @@ func (s *Service) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/api/search", makeHandler(s.Search))
 	mux.HandleFunc("/api/process_document", makeHandler(s.ProcessDocument))
+	mux.HandleFunc("/api/delete_document", makeHandler(s.DeleteDocument))
 	mux.HandleFunc("/api/batch_process_documents", makeHandler(s.BatchProcessDocuments))
 }
 

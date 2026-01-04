@@ -31,6 +31,7 @@ func main() {
 		fmt.Println("Commands:")
 		fmt.Println("  search <query>           - Search for documents")
 		fmt.Println("  process <filename>       - Process a single document")
+		fmt.Println("  delete <name>            - Delete a document by name")
 		fmt.Println("  batch <filename>...      - Process multiple documents")
 		os.Exit(1)
 	}
@@ -51,6 +52,13 @@ func main() {
 		}
 		filename := args[1]
 		process(serverURL, filename)
+	case "delete":
+		if len(args) < 2 {
+			fmt.Println("Usage: rag delete <name>")
+			os.Exit(1)
+		}
+		name := args[1]
+		deleteDoc(serverURL, name)
 	case "batch":
 		if len(args) < 2 {
 			fmt.Println("Usage: rag batch <filename>...")
@@ -152,6 +160,47 @@ func process(serverURL, filename string) {
 		fmt.Println("Document processed successfully.")
 	} else {
 		fmt.Println("Document processing failed.")
+		os.Exit(1)
+	}
+}
+
+func deleteDoc(serverURL, name string) {
+	req := service.DeleteDocumentRequest{
+		DocumentName: name,
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		fmt.Printf("Error marshaling request: %v\n", err)
+		os.Exit(1)
+	}
+
+	resp, err := http.Post(serverURL+"/api/delete_document", "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial tcp") {
+			fmt.Printf("Error: Service appears to be not running. Please start the server first.\n")
+		} else {
+			fmt.Printf("Error making request: %v\n", err)
+		}
+		os.Exit(1)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Server error: %s - %s\n", resp.Status, string(body))
+		os.Exit(1)
+	}
+
+	var success service.SuccessResponse
+	if err := json.NewDecoder(resp.Body).Decode(&success); err != nil {
+		fmt.Printf("Error decoding response: %v\n", err)
+		os.Exit(1)
+	}
+
+	if success.Success {
+		fmt.Println("Document deleted successfully.")
+	} else {
+		fmt.Println("Document deletion failed.")
 		os.Exit(1)
 	}
 }
