@@ -195,3 +195,81 @@ func TestProcessOpenAIGuideNotes(t *testing.T) {
 		t.Fatalf("expected search results for processed OpenAI guide, got none")
 	}
 }
+
+func TestReprocessDocument(t *testing.T) {
+	ctx := context.Background()
+
+	documentName := "Reprocess Test Document"
+
+	// Process initial document
+	initialData := []byte("This document contains a unique phrase: xyz123 old content.")
+	s, err := svc.ProcessDocument(ctx, &ProcessDocumentRequest{
+		DocumentName: documentName,
+		DocumentData: initialData,
+	})
+	if err != nil {
+		t.Fatalf("failed to process initial document: %v", err)
+	}
+	if !s.Success {
+		t.Fatalf("initial document processing reported failure")
+	}
+
+	// Get initial document ID
+	initialDoc, err := db.GetDocumentByName(ctx, testDB, documentName)
+	if err != nil {
+		t.Fatalf("failed to get initial document: %v", err)
+	}
+	if initialDoc == nil {
+		t.Fatalf("initial document was not found")
+	}
+	initialID := initialDoc.ID
+
+	// Search for unique old phrase to confirm it's there
+	searchReq := &SearchRequest{
+		Query: "xyz123",
+	}
+	results, err := svc.Search(ctx, searchReq)
+	if err != nil {
+		t.Fatalf("search failed for initial content: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatalf("expected to find initial content, got none")
+	}
+
+	// Reprocess with new content
+	newData := []byte("This document has a different unique phrase: abc456 new content.")
+	s, err = svc.ProcessDocument(ctx, &ProcessDocumentRequest{
+		DocumentName: documentName,
+		DocumentData: newData,
+	})
+	if err != nil {
+		t.Fatalf("failed to reprocess document: %v", err)
+	}
+	if !s.Success {
+		t.Fatalf("reprocess document reported failure")
+	}
+
+	// Verify document was replaced (different ID)
+	newDoc, err := db.GetDocumentByName(ctx, testDB, documentName)
+	if err != nil {
+		t.Fatalf("failed to get new document: %v", err)
+	}
+	if newDoc == nil {
+		t.Fatalf("new document was not found")
+	}
+	if newDoc.ID == initialID {
+		t.Fatalf("document ID was not changed, expected replacement")
+	}
+
+	// Search for new unique phrase - should find
+	searchReq = &SearchRequest{
+		Query: "abc456",
+	}
+	results, err = svc.Search(ctx, searchReq)
+	if err != nil {
+		t.Fatalf("search failed for new content: %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatalf("expected to find new content, got none")
+	}
+}

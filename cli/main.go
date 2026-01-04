@@ -19,7 +19,7 @@ import (
 func main() {
 	cfg := config.GetConfig(context.Background())
 
-	url := fmt.Sprintf("%s:%d", cfg.CLI.Host, cfg.Port)
+	url := fmt.Sprintf("%s:%d", cfg.Extensions.Host, cfg.Port)
 
 	var serverURL string
 	flag.StringVar(&serverURL, "url", url, "URL of the local RAG service")

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 
@@ -40,6 +41,8 @@ type SearchRequest struct {
 }
 
 func (s *Service) Search(ctx context.Context, req *SearchRequest) ([]db.SearchResult, error) {
+	slog.Info("received search request", slog.String("query", req.Query))
+
 	// Generate embedding for the query
 	queryEmbedding, err := s.embedder.GenerateEmbedding(ctx, []byte(req.Query))
 	if err != nil {
@@ -70,6 +73,20 @@ func Success(s bool) *SuccessResponse {
 }
 
 func (s *Service) ProcessDocument(ctx context.Context, req *ProcessDocumentRequest) (*SuccessResponse, error) {
+	// Check if document with this name already exists and delete it
+	existingDoc, err := db.GetDocumentByName(ctx, s.db, req.DocumentName)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		slog.Error("failed to check for existing document", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
+		return Success(false), err
+	}
+	if existingDoc != nil {
+		err = db.DeleteDocument(ctx, s.db, existingDoc.ID)
+		if err != nil {
+			slog.Error("failed to delete existing document", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
+			return Success(false), err
+		}
+	}
+
 	// Save document to the database
 	documentID, err := db.SaveDocument(ctx, s.db, req.DocumentName)
 	if err != nil {
