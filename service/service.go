@@ -145,6 +145,7 @@ func (s *Service) BatchProcessDocuments(ctx context.Context, req *BatchProcessDo
 	reqChan := make(chan *ProcessDocumentRequest)
 
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	wg.Add(s.cfg.BatchProcessing.WorkerCount)
 
 	failed := make(chan string, len(req.Documents))
@@ -169,17 +170,24 @@ func (s *Service) BatchProcessDocuments(ctx context.Context, req *BatchProcessDo
 	for _, req := range req.Documents {
 		reqChan <- req
 	}
+	close(reqChan)
 
 	failedDocuments := make([]string, 0)
+	collectorDone := make(chan struct{})
 	go func() {
+		defer close(collectorDone)
 		for docName := range failed {
+			mu.Lock()
 			failedDocuments = append(failedDocuments, docName)
+			mu.Unlock()
 		}
 	}()
 
 	wg.Wait()
-	close(reqChan)
 	close(failed)
+	<-collectorDone
+
+	slog.Info("batch processing completed", slog.Int("total_documents", len(req.Documents)), slog.Int("failed_documents", len(failedDocuments)))
 
 	return &BatchProcessResponse{
 		FailedDocuments: failedDocuments,
