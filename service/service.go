@@ -130,15 +130,24 @@ type BatchProcessDocumentsRequest struct {
 	Documents []*ProcessDocumentRequest `json:"documents"`
 }
 
-func (s *Service) BatchProcessDocuments(ctx context.Context, req *BatchProcessDocumentsRequest) (*SuccessResponse, error) {
+type BatchProcessResponse struct {
+	FailedDocuments []string `json:"failed_documents"` // Names of documents that failed to process
+}
+
+func (s *Service) BatchProcessDocuments(ctx context.Context, req *BatchProcessDocumentsRequest) (*BatchProcessResponse, error) {
 	if len(req.Documents) == 0 {
-		return Success(true), nil
+		slog.Info("nothing to process in batch request. Returning....")
+		return &BatchProcessResponse{
+			FailedDocuments: []string{},
+		}, nil
 	}
 
 	reqChan := make(chan *ProcessDocumentRequest)
 
 	var wg sync.WaitGroup
 	wg.Add(s.cfg.BatchProcessing.WorkerCount)
+
+	failed := make(chan string, len(req.Documents))
 
 	for range s.cfg.BatchProcessing.WorkerCount {
 		go func() {
@@ -151,6 +160,7 @@ func (s *Service) BatchProcessDocuments(ctx context.Context, req *BatchProcessDo
 
 				if !s.Success {
 					slog.Error("processing document in batch was not successful", slog.String("document_name", req.DocumentName))
+					failed <- req.DocumentName
 				}
 			}
 		}()
@@ -160,7 +170,18 @@ func (s *Service) BatchProcessDocuments(ctx context.Context, req *BatchProcessDo
 		reqChan <- req
 	}
 
-	close(reqChan)
+	failedDocuments := make([]string, 0)
+	go func() {
+		for docName := range failed {
+			failedDocuments = append(failedDocuments, docName)
+		}
+	}()
+
 	wg.Wait()
-	return Success(true), nil
+	close(reqChan)
+	close(failed)
+
+	return &BatchProcessResponse{
+		FailedDocuments: failedDocuments,
+	}, nil
 }
