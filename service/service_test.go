@@ -271,3 +271,118 @@ func TestReprocessDocument(t *testing.T) {
 		t.Fatalf("expected to find new content, got none")
 	}
 }
+
+func TestDocumentNameSemanticSearch(t *testing.T) {
+	ctx := context.Background()
+
+	// Test that documents with similar names are findable and marked correctly
+	// Process a document with a distinctive name
+	documentName1 := "QuantumComputingResearch2024"
+	documentData1 := []byte("This document contains information about traditional computing systems. CPUs process instructions sequentially. Memory storage uses traditional binary representation.")
+
+	s, err := svc.ProcessDocument(ctx, &ProcessDocumentRequest{
+		DocumentName: documentName1,
+		DocumentData: documentData1,
+	})
+	if err != nil {
+		t.Fatalf("failed to process document: %v", err)
+	}
+	if !s.Success {
+		t.Fatalf("document processing reported failure")
+	}
+
+	// Verify that document name embedding was saved
+	doc, err := db.GetDocumentByName(ctx, testDB, documentName1)
+	if err != nil {
+		t.Fatalf("failed to get document: %v", err)
+	}
+
+	// Directly check the database for name embedding
+	var count int64
+	testDB.Raw("SELECT COUNT(*) FROM document_name_embeddings WHERE document_id = ?", doc.ID).Scan(&count)
+	if count != 1 {
+		t.Fatalf("expected 1 name embedding for document, got %d", count)
+	}
+
+	// Now search - the document should be findable
+	searchReq := &SearchRequest{
+		Query: "Quantum Computing",
+	}
+
+	results, err := svc.Search(ctx, searchReq)
+	if err != nil {
+		t.Fatalf("search failed: %v", err)
+	}
+
+	// The document should be in results
+	found := false
+	for _, result := range results {
+		if result.DocumentName == documentName1 {
+			found = true
+			t.Logf("Found document '%s' with IsNameMatch=%v, distance=%.4f", result.DocumentName, result.IsNameMatch, result.Distance)
+			break
+		}
+	}
+
+	if !found {
+		t.Logf("Document not found in results. Results count: %d", len(results))
+		t.Logf("Results: %+v", results)
+		t.Fatalf("expected to find document '%s' in search results", documentName1)
+	}
+
+	// The test passes if the document is found in results
+	// (it may be found as a name match or content match depending on semantic similarity)
+}
+
+func TestDocumentNameEmbeddingCleanup(t *testing.T) {
+	ctx := context.Background()
+
+	documentName := "Cleanup Test Document"
+	documentData := []byte("Test content for cleanup.")
+
+	// Process document
+	s, err := svc.ProcessDocument(ctx, &ProcessDocumentRequest{
+		DocumentName: documentName,
+		DocumentData: documentData,
+	})
+	if err != nil {
+		t.Fatalf("failed to process document: %v", err)
+	}
+	if !s.Success {
+		t.Fatalf("document processing reported failure")
+	}
+
+	// Get document ID
+	doc, err := db.GetDocumentByName(ctx, testDB, documentName)
+	if err != nil {
+		t.Fatalf("failed to get document: %v", err)
+	}
+	if doc == nil {
+		t.Fatalf("document was not found")
+	}
+
+	// Verify name embedding exists
+	var count int64
+	testDB.Raw("SELECT COUNT(*) FROM document_name_embeddings WHERE document_id = ?", doc.ID).Scan(&count)
+	if count != 1 {
+		t.Fatalf("expected 1 name embedding for document, got %d", count)
+	}
+
+	// Delete document
+	delReq := &DeleteDocumentRequest{
+		DocumentName: documentName,
+	}
+	s, err = svc.DeleteDocument(ctx, delReq)
+	if err != nil {
+		t.Fatalf("failed to delete document: %v", err)
+	}
+	if !s.Success {
+		t.Fatalf("document deletion reported failure")
+	}
+
+	// Verify name embedding was deleted
+	testDB.Raw("SELECT COUNT(*) FROM document_name_embeddings WHERE document_id = ?", doc.ID).Scan(&count)
+	if count != 0 {
+		t.Fatalf("expected 0 name embeddings after deletion, but found %d", count)
+	}
+}

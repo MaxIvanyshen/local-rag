@@ -51,12 +51,65 @@ func (s *Service) Search(ctx context.Context, req *SearchRequest) ([]db.SearchRe
 	}
 
 	// Search chunks using the generated embedding
-	results, err := db.SearchChunks(ctx, s.db, queryEmbedding, s.cfg.Search.TopK)
+	chunkResults, err := db.SearchChunks(ctx, s.db, queryEmbedding, s.cfg.Search.TopK)
 	if err != nil {
 		return nil, err
 	}
 
-	return results, nil
+	// Search document names using the same embedding
+	nameResults, err := db.SearchDocumentNames(ctx, s.db, queryEmbedding, s.cfg.Search.TopK)
+	if err != nil {
+		return nil, err
+	}
+
+	// Merge results: create a map of document IDs from chunk results
+	docIDsInChunks := make(map[string]bool)
+	for _, result := range chunkResults {
+		docIDsInChunks[result.DocumentID] = true
+	}
+
+	// Add name-only matches (documents found by name but not in chunk results)
+	mergedResults := make([]db.SearchResult, len(chunkResults))
+	copy(mergedResults, chunkResults)
+
+	for _, nameResult := range nameResults {
+		if !docIDsInChunks[nameResult.DocumentID] {
+			// This document wasn't in chunk results, so add it as a name-only match
+			doc, err := db.GetDocumentByID(ctx, s.db, nameResult.DocumentID)
+			if err != nil {
+				slog.Warn("failed to get document name for ID", slog.String("document_id", nameResult.DocumentID), slog.String("error", err.Error()))
+				continue
+			}
+			mergedResults = append(mergedResults, db.SearchResult{
+				DocumentID:   nameResult.DocumentID,
+				DocumentName: doc.Name,
+				Distance:     nameResult.Distance,
+				IsNameMatch:  true,
+				// Other fields left empty/zero for name-only matches
+			})
+		}
+	}
+
+	// Sort merged results by distance
+	sortResultsByDistance(mergedResults)
+
+	// Truncate to TopK
+	if len(mergedResults) > s.cfg.Search.TopK {
+		mergedResults = mergedResults[:s.cfg.Search.TopK]
+	}
+
+	return mergedResults, nil
+}
+
+// sortResultsByDistance sorts search results by distance in ascending order.
+func sortResultsByDistance(results []db.SearchResult) {
+	for i := 0; i < len(results); i++ {
+		for j := i + 1; j < len(results); j++ {
+			if results[j].Distance < results[i].Distance {
+				results[i], results[j] = results[j], results[i]
+			}
+		}
+	}
 }
 
 type ProcessDocumentRequest struct {
@@ -90,6 +143,19 @@ func (s *Service) ProcessDocument(ctx context.Context, req *ProcessDocumentReque
 	documentID, err := db.SaveDocument(ctx, s.db, req.DocumentName)
 	if err != nil {
 		slog.Error("failed to save document", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
+		return Success(false), err
+	}
+
+	// Generate and save document name embedding
+	nameEmbedding, err := s.embedder.GenerateEmbedding(ctx, []byte(req.DocumentName))
+	if err != nil {
+		slog.Error("failed to generate embedding for document name", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
+		return Success(false), err
+	}
+
+	err = db.SaveDocumentNameEmbedding(ctx, s.db, documentID, nameEmbedding)
+	if err != nil {
+		slog.Error("failed to save document name embedding", slog.String("error", err.Error()), slog.String("document_name", req.DocumentName))
 		return Success(false), err
 	}
 

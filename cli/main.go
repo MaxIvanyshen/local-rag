@@ -110,7 +110,11 @@ func search(serverURL, query string) {
 	fmt.Println("Search Results:")
 	for _, result := range results {
 		fmt.Printf("- Document: %s\n", result.DocumentName)
-		fmt.Printf("  Content: %s\n", result.Content)
+		if result.IsNameMatch {
+			fmt.Printf("  Match Type: Name match\n")
+		} else {
+			fmt.Printf("  Content: %s\n", result.Content)
+		}
 		fmt.Printf("  Distance: %.4f\n", result.Distance)
 		fmt.Println()
 	}

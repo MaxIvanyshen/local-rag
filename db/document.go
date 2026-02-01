@@ -35,6 +35,13 @@ func DeleteDocument(ctx context.Context, db *gorm.DB, docID string) error {
 		return fmt.Errorf("failed to delete chunks: %w", err)
 	}
 
+	// Delete document name embedding
+	if err := db.WithContext(ctx).Exec(`
+		DELETE FROM document_name_embeddings 
+		WHERE document_id = ?`, docID).Error; err != nil {
+		return fmt.Errorf("failed to delete document name embedding: %w", err)
+	}
+
 	// Delete document
 	if err := db.WithContext(ctx).Delete(&Document{ID: docID}).Error; err != nil {
 		return fmt.Errorf("failed to delete document: %w", err)
@@ -66,4 +73,17 @@ func SaveDocument(ctx context.Context, db *gorm.DB, name string) (string, error)
 	}
 
 	return docID, nil
+}
+
+// GetDocumentByID retrieves a document by ID.
+func GetDocumentByID(ctx context.Context, db *gorm.DB, id string) (*Document, error) {
+	var doc Document
+	err := db.WithContext(ctx).Raw("SELECT * FROM documents WHERE id = ? LIMIT 1", id).Scan(&doc).Error
+	if err != nil {
+		return nil, err
+	}
+	if doc.ID == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &doc, nil
 }

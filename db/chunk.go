@@ -57,6 +57,7 @@ type SearchResult struct {
 	EndLine      int     `json:"end_line" gorm:"column:end_line"`
 	Content      string  `json:"data" gorm:"column:data"`
 	Distance     float64 `json:"distance" gorm:"column:distance"`
+	IsNameMatch  bool    `json:"is_name_match"`
 }
 
 func SearchChunks(ctx context.Context, db *gorm.DB, queryEmbedding []float32, limit int) ([]SearchResult, error) {
@@ -86,6 +87,46 @@ func SearchChunks(ctx context.Context, db *gorm.DB, queryEmbedding []float32, li
 		) knn ON c.embedding_rowid = knn.rowid`, string(queryJSON), limit).Scan(&results).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to query: %w", err)
+	}
+	return results, nil
+}
+
+type DocumentNameSearchResult struct {
+	DocumentID string  `json:"document_id" gorm:"column:document_id"`
+	Distance   float64 `json:"distance" gorm:"column:distance"`
+}
+
+func SaveDocumentNameEmbedding(ctx context.Context, db *gorm.DB, documentID string, embedding []float32) error {
+	embeddingJSON, err := json.Marshal(embedding)
+	if err != nil {
+		return fmt.Errorf("failed to marshal document name embedding: %w", err)
+	}
+
+	if err := db.WithContext(ctx).Exec(`
+		INSERT INTO document_name_embeddings (document_id, embedding)
+		VALUES (?, ?)`, documentID, string(embeddingJSON)).Error; err != nil {
+		return fmt.Errorf("failed to insert document name embedding: %w", err)
+	}
+
+	return nil
+}
+
+func SearchDocumentNames(ctx context.Context, db *gorm.DB, queryEmbedding []float32, limit int) ([]DocumentNameSearchResult, error) {
+	queryJSON, err := json.Marshal(queryEmbedding)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal query embedding: %w", err)
+	}
+
+	var results []DocumentNameSearchResult
+	err = db.WithContext(ctx).Raw(`SELECT
+		document_id as document_id,
+		distance as distance
+		FROM document_name_embeddings
+		WHERE embedding MATCH ?
+		ORDER BY distance
+		LIMIT ?`, string(queryJSON), limit).Scan(&results).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to query document name embeddings: %w", err)
 	}
 	return results, nil
 }
